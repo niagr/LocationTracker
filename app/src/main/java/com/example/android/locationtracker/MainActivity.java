@@ -5,6 +5,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -21,6 +28,12 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+
+import java.sql.Time;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 
 public class MainActivity extends Activity implements ConnectionCallbacks, OnConnectionFailedListener, LocationListener {
@@ -63,6 +76,44 @@ public class MainActivity extends Activity implements ConnectionCallbacks, OnCon
             }
         });
 
+    }
+
+    void makeRequest (final double latitude, final double longitude) {
+        Log.d("nish", "Hi");
+
+        SimpleDateFormat df = new SimpleDateFormat("hh:mm:ss yyyy-MM-dd");
+        final String dateStr = df.format(new Date());
+
+        Log.d("nish", dateStr);
+
+
+        RequestQueue queue = Volley.newRequestQueue(this);
+
+        StringRequest strReq = new StringRequest(
+                Request.Method.POST,
+                "http://8bf548ae.ngrok.io/receive/",
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        Log.d("nish", response);
+                    }
+                }, new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.d("nish", error.toString());
+                    }
+                }
+        ) {
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
+                Map<String, String> params = new HashMap<>();
+                params.put("latitude", Double.toString(latitude));
+                params.put("longitude", Double.toString(longitude));
+                params.put("time", dateStr);
+                return params;
+            }
+        };
+        queue.add(strReq);
     }
 
     protected boolean checkPlayServices() {
@@ -146,6 +197,7 @@ public class MainActivity extends Activity implements ConnectionCallbacks, OnCon
         double newLongitude = location.getLongitude();
         Log.d("DONNA", newLatitude + " " + newLongitude);
         lblLocation.setText(newLatitude+" "+newLongitude);
+        this.makeRequest(newLatitude, newLongitude);
     }
 
     @Override
