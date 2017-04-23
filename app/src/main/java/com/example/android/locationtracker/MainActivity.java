@@ -79,13 +79,9 @@ public class MainActivity extends Activity implements ConnectionCallbacks, OnCon
     }
 
     void makeRequest (final double latitude, final double longitude) {
-        Log.d("nish", "Hi");
 
         SimpleDateFormat df = new SimpleDateFormat("hh:mm:ss yyyy-MM-dd");
         final String dateStr = df.format(new Date());
-
-        Log.d("nish", dateStr);
-
 
         RequestQueue queue = Volley.newRequestQueue(this);
 
