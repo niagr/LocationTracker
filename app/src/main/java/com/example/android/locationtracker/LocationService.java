@@ -6,6 +6,7 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
@@ -48,6 +49,8 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     private static int UPDATE_INTERVAL = 7000;
     private static int FASTEST_INTERVAL = 5000;
+
+    private String mtripId;
 
     public LocationService () {
         super();
@@ -93,6 +96,65 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     }
 
+    @Override
+    public void onConnected (Bundle arg0) {
+        checkPlayServices();
+        createLocationRequest();
+        boolean old = initTripId();
+        sendMsgToActivity(old);
+        startLocationUpdates();
+    }
+
+    void sendMsgToActivity (boolean old) {
+        Intent broadcastIntent = new Intent();
+        broadcastIntent.setAction(Constants.SERVICE_BROADCAST_ACTION);
+        broadcastIntent.putExtra(Constants.TRIP_ID_KEY, mtripId);
+        broadcastIntent.putExtra(Constants.TRIP_ID_OLD, old);
+        sendBroadcast(broadcastIntent);
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult result) {
+        Log.i(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + result.getErrorCode());
+    }
+
+
+    @Override
+    public void onConnectionSuspended(int arg0) {
+        mGoogleApiClient.connect();
+    }
+
+    protected void startLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        if(mGoogleApiClient != null) {
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mRequestingLocationUpdates, this);
+        }
+    }
+
+    protected void stopLocationUpdates () {
+        if (mGoogleApiClient != null) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        }
+    }
+
+    boolean initTripId () {
+        SharedPreferences sharedPrefs = this.getSharedPreferences(Constants.SHARED_PREFS_NAME, this.MODE_PRIVATE);
+        String tripId = sharedPrefs.getString(Constants.TRIP_ID_KEY, "none");
+        boolean old = true;
+        if (tripId.equals("none")) {
+            old = false;
+            tripId = java.util.UUID.randomUUID().toString();
+            SharedPreferences.Editor editor = sharedPrefs.edit();
+            editor.putString(Constants.TRIP_ID_KEY, tripId);
+            editor.commit();
+        }
+        mtripId = tripId;
+        return old;
+    }
+
     void bringToForeground () {
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setAction(Constants.MAIN_ACTION);
@@ -134,6 +196,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
             @Override
             protected Map<String, String> getParams() throws AuthFailureError {
                 Map<String, String> params = new HashMap<>();
+                params.put("trip_id", mtripId);
                 params.put("latitude", Double.toString(latitude));
                 params.put("longitude", Double.toString(longitude));
                 params.put("time", dateStr);
@@ -141,6 +204,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
             }
         };
         queue.add(strReq);
+        Log.d("nish", "Reporting with trip ID: " + mtripId);
     }
 
     private void getLocation() {
@@ -198,44 +262,16 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     }
 
     @Override
-    public void onConnectionFailed(ConnectionResult result) {
-        Log.i(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + result.getErrorCode());
-    }
-
-
-    @Override
-    public void onConnectionSuspended(int arg0) {
-        mGoogleApiClient.connect();
-    }
-
-    @Override
-    public void onConnected (Bundle arg0) {
-        checkPlayServices();
-        createLocationRequest();
-        startLocationUpdates();
-    }
-
-    protected void startLocationUpdates() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-        if(mGoogleApiClient != null) {
-            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mRequestingLocationUpdates, this);
-        }
-    }
-
-    protected void stopLocationUpdates () {
-        if (mGoogleApiClient != null) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
-        }
-    }
-
-    @Override
     public void onDestroy() {
         Log.d("nish", "Destorying locationService");
         stopLocationUpdates();
+        clearTripId();
         super.onDestroy();
+    }
+
+    void clearTripId () {
+        SharedPreferences sharedPrefs = this.getSharedPreferences(Constants.SHARED_PREFS_NAME, this.MODE_PRIVATE);
+        sharedPrefs.edit().remove(Constants.TRIP_ID_KEY).commit();
     }
 
     public void onLocationChanged (Location location) {

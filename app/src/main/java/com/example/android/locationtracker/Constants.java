@@ -11,4 +11,8 @@ public class Constants {
     public static final String queryStatus = "queryStatus";
     public static final String startLocationUpdates = "startLocationUpdates";
     public static final String stopLocationUpdates = "stopLocationUpdates";
+    public static final String SHARED_PREFS_NAME = "settings";
+    public static final String TRIP_ID_KEY = "tripId";
+    public static final String TRIP_ID_OLD = "tripIdOld";
+    public static final String SERVICE_BROADCAST_ACTION = "serviceMessage";
 }
