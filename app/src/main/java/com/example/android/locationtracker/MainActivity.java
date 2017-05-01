@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 
@@ -30,6 +31,7 @@ import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -51,6 +53,7 @@ public class MainActivity extends Activity {
     private static int UPDATE_INTERVAL = 7000;
     private static int FASTEST_INTERVAL = 5000;
     private TextView lblTripId, lblTripIdOld;
+    private EditText txtRouteId;
     private Button btnShowLocation, btnStartLocationUpdates, btnStopLocationUpdates;
 
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -73,13 +76,20 @@ public class MainActivity extends Activity {
         lblTripIdOld = (TextView) findViewById(R.id.lblTripIdOld);
         btnStartLocationUpdates = (Button) findViewById(R.id.btnLocationUpdates);
         btnStopLocationUpdates = (Button) findViewById(R.id.btnStopLocationUpdates);
+        txtRouteId = (EditText)findViewById(R.id.txtRouteId);
 
 
         btnStartLocationUpdates.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                String routeId = txtRouteId.getText().toString();
+                if (routeId.length() == 0) {
+                    Toast.makeText(MainActivity.this, "Please enter a route ID first.", Toast.LENGTH_LONG).show();
+                    return;
+                }
                 Intent locationServiceIntent = new Intent(MainActivity.this, LocationService.class);
                 locationServiceIntent.putExtra(Constants.OPERATION, Constants.startLocationUpdates);
+                locationServiceIntent.putExtra(Constants.ROUTE_ID_KEY, routeId);
                 startService(locationServiceIntent);
             }
         });

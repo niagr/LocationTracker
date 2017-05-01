@@ -48,9 +48,10 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     private LocationRequest mRequestingLocationUpdates;
 
     private static int UPDATE_INTERVAL = 7000;
-    private static int FASTEST_INTERVAL = 5000;
+    private static int FASTEST_INTERVAL = 2000;
 
     private String mtripId;
+    private String mRouteId;
 
     public LocationService () {
         super();
@@ -73,6 +74,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         bringToForeground();
         String operation = intent.getExtras().getString(Constants.OPERATION);
         if (operation.equals(Constants.startLocationUpdates)) {
+            mRouteId = intent.getExtras().getString(Constants.ROUTE_ID_KEY);
             if (checkPlayServices()) {
                 if (mGoogleApiClient == null)
                     buildGoogleApiClient();
@@ -101,6 +103,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         checkPlayServices();
         createLocationRequest();
         boolean old = initTripId();
+        registerTripToRoute(mRouteId);
         sendMsgToActivity(old);
         startLocationUpdates();
     }
@@ -171,6 +174,35 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         startForeground(Constants.FOREGROUND_SERVICE, notification);
     }
 
+    void registerTripToRoute (final String routeId) {
+        RequestQueue queue = Volley.newRequestQueue(this);
+        StringRequest strReq = new StringRequest(
+                Request.Method.POST,
+                "http://ec2-54-202-217-53.us-west-2.compute.amazonaws.com:8080/startTrip/",
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        Log.d("nish", "Registered trip to route: " + response);
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.d("nish", "Failed to register trip to route: " + error.toString());
+                    }
+                }
+        ) {
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
+                Map<String, String> params = new HashMap<>();
+                params.put("trip_id", mtripId);
+                params.put("route_id", routeId);
+                return params;
+            }
+        };
+        queue.add(strReq);
+    }
+
     void makeRequest (final double latitude, final double longitude) {
 
         SimpleDateFormat df = new SimpleDateFormat("hh:mm:ss yyyy-MM-dd");
@@ -180,18 +212,19 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
         StringRequest strReq = new StringRequest(
                 Request.Method.POST,
-                "http://8bf548ae.ngrok.io/receive/",
+                "http://ec2-54-202-217-53.us-west-2.compute.amazonaws.com:8080/receive/",
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
                         Log.d("nish", response);
                     }
-                }, new Response.ErrorListener() {
-            @Override
-            public void onErrorResponse(VolleyError error) {
-                Log.d("nish", error.toString());
-            }
-        }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Log.d("nish", error.toString());
+                    }
+                }
         ) {
             @Override
             protected Map<String, String> getParams() throws AuthFailureError {
@@ -257,7 +290,7 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
         mRequestingLocationUpdates = new LocationRequest();
         mRequestingLocationUpdates.setInterval(UPDATE_INTERVAL);
         mRequestingLocationUpdates.setFastestInterval(FASTEST_INTERVAL);
-        mRequestingLocationUpdates.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        mRequestingLocationUpdates.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
     }
 
